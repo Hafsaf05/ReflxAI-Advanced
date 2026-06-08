@@ -1,0 +1,6 @@
+streamlit>=1.40.0
+groq>=0.26.0
+pygithub
+python-dotenv
+protobuf
+numpy
