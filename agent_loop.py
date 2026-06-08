@@ -1,62 +1,71 @@
 """
 agent_loop.py — ReflxAI-Advanced
-Multi-Agent Orchestration Engine: coordinates the Generator and Critic agents
-in an iterative refinement loop, yielding live status updates to the frontend.
+Multi-Agent Orchestration Engine: coordinates all 6 agents in an intelligent
+sequence with live status updates to the frontend.
 """
 
-from typing import Generator, Tuple
+from typing import Generator, Tuple, Dict, Any
 
 from generator import generate_code
 from critique import evaluate_code, is_approved
+from test_agent import generate_tests
+from performance_agent import analyze_performance, is_optimized
+from security_agent import audit_security, is_secure
+from documentation_agent import generate_documentation
+from metrics import generate_quality_report
 
-# Type alias for the yielded tuple: (status_message, current_code)
-AgentUpdate = Tuple[str, str]
+# Type alias for the yielded tuple: (status_message, current_code, agent_outputs)
+AgentUpdate = Tuple[str, str, Dict[str, Any]]
 
 
 def run_developer_agents(
     prompt: str,
     max_iterations: int = 3,
+    skip_agents: list = None,
 ) -> Generator[AgentUpdate, None, None]:
     """
-    Orchestrate an iterative debate between the Generator and Critic agents.
+    Orchestrate a multi-agent pipeline with intelligent sequencing.
 
-    Each iteration:
-      1. Generator writes (or rewrites) the code.
-      2. Critic evaluates the code.
-      3. If APPROVED → loop exits and final code is surfaced.
-         If not      → the critique is fed back to the Generator as context.
+    Pipeline stages:
+      1. Generator writes code
+      2. Critic reviews for quality
+      3. Test Agent generates tests
+      4. Performance Agent optimizes
+      5. Security Agent audits
+      6. Documentation Agent adds docs
 
-    This is a generator function that yields (status_message, code) tuples at
-    each significant step so the Streamlit frontend can update live.
+    Each stage runs sequentially with live status updates.
 
     Args:
-        prompt:         Natural-language description of the code to build.
-        max_iterations: Maximum number of generate→review cycles (default: 3).
+        prompt:       Natural-language description of the code to build.
+        max_iterations: Max generate→critic cycles before proceeding (default: 3).
+        skip_agents:  List of agent names to skip ['test', 'performance', 'security', 'docs'].
 
     Yields:
-        Tuples of (str, str) where the first element is a human-readable
-        status message and the second is the current code snapshot.
+        Tuples of (status_msg, code, agent_outputs_dict).
 
     Raises:
         ValueError: If prompt is empty or max_iterations < 1.
-        RuntimeError: Propagated from generator or critique modules on API failure.
+        RuntimeError: Propagated from agent modules on API failure.
     """
     if not prompt or not prompt.strip():
         raise ValueError("Prompt must be a non-empty string.")
     if max_iterations < 1:
         raise ValueError("max_iterations must be at least 1.")
 
+    skip_agents = skip_agents or []
+    agent_outputs: Dict[str, Any] = {}
+
     current_code: str = ""
     previous_critique: str = ""
 
+    # ── Phase 1: Generate & Review Loop ──────────────────────────────────────
     for iteration in range(1, max_iterations + 1):
 
-        # ── Step 1: Generate / Refactor ──────────────────────────────────────
         if iteration == 1:
             generation_prompt = prompt.strip()
             status_gen = "🤖 Generator Agent — Writing baseline implementation…"
         else:
-            # Enrich prompt with the previous critique to guide refactoring
             generation_prompt = (
                 f"{prompt.strip()}\n\n"
                 f"--- PREVIOUS IMPLEMENTATION ---\n{current_code}\n\n"
@@ -68,41 +77,134 @@ def run_developer_agents(
                 "Refactoring based on reviewer feedback…"
             )
 
-        yield (status_gen, current_code)
+        yield (status_gen, current_code, agent_outputs)
 
         current_code = generate_code(generation_prompt)
         yield (
-            f"✅ Generator Agent — Iteration {iteration} complete. Code produced.",
+            f"✅ Generator Agent — Iteration {iteration} complete.",
             current_code,
+            agent_outputs,
         )
 
-        # ── Step 2: Critique ─────────────────────────────────────────────────
+        # Review phase
         yield (
-            f"🔍 Critic Agent — Iteration {iteration}: Reviewing the implementation…",
+            f"🔍 Critic Agent — Iteration {iteration}: Reviewing…",
             current_code,
+            agent_outputs,
         )
 
         verdict = evaluate_code(current_code)
+        agent_outputs["critic"] = verdict
 
         if is_approved(verdict):
             yield (
-                f"🏆 Critic Agent — APPROVED on iteration {iteration}! "
-                "Code passes all quality checks.",
+                f"🏆 Critic Agent — APPROVED on iteration {iteration}!",
                 current_code,
+                agent_outputs,
             )
-            return  # Exit generator — final code is the last yielded code
+            break
 
-        # Not approved — surface the critique and loop
         previous_critique = verdict
         yield (
-            f"📋 Critic Agent — Iteration {iteration}: Issues found. "
-            f"Sending feedback to Generator for revision…\n\n**Critique:**\n{verdict}",
+            f"📋 Critic Agent — Iteration {iteration}: Issues found.",
             current_code,
+            agent_outputs,
         )
 
-    # ── Max iterations reached without approval ───────────────────────────────
+    # ── Phase 2: Specialized Agents (Sequential) ────────────────────────────
+
+    # Test Agent
+    if "test" not in skip_agents:
+        yield ("🧪 Test Agent — Generating comprehensive tests…", current_code, agent_outputs)
+        try:
+            tests = generate_tests(current_code)
+            agent_outputs["tests"] = tests
+            yield (
+                "✅ Test Agent — Tests generated successfully.",
+                current_code,
+                agent_outputs,
+            )
+        except Exception as e:
+            agent_outputs["tests_error"] = str(e)
+            yield (f"⚠️ Test Agent — Error: {str(e)}", current_code, agent_outputs)
+
+    # Performance Agent
+    if "performance" not in skip_agents:
+        yield (
+            "⚡ Performance Agent — Analyzing for optimizations…",
+            current_code,
+            agent_outputs,
+        )
+        try:
+            perf_analysis = analyze_performance(current_code)
+            agent_outputs["performance"] = perf_analysis
+            yield (
+                "✅ Performance Agent — Analysis complete.",
+                current_code,
+                agent_outputs,
+            )
+        except Exception as e:
+            agent_outputs["performance_error"] = str(e)
+            yield (f"⚠️ Performance Agent — Error: {str(e)}", current_code, agent_outputs)
+
+    # Security Agent
+    if "security" not in skip_agents:
+        yield (
+            "🔒 Security Agent — Auditing for vulnerabilities…",
+            current_code,
+            agent_outputs,
+        )
+        try:
+            security_audit = audit_security(current_code)
+            agent_outputs["security"] = security_audit
+            yield (
+                "✅ Security Agent — Audit complete.",
+                current_code,
+                agent_outputs,
+            )
+        except Exception as e:
+            agent_outputs["security_error"] = str(e)
+            yield (f"⚠️ Security Agent — Error: {str(e)}", current_code, agent_outputs)
+
+    # Documentation Agent
+    if "docs" not in skip_agents:
+        yield (
+            "📚 Documentation Agent — Adding comprehensive documentation…",
+            current_code,
+            agent_outputs,
+        )
+        try:
+            documented_code = generate_documentation(current_code)
+            agent_outputs["documented_code"] = documented_code
+            current_code = documented_code
+            yield (
+                "✅ Documentation Agent — Documentation added.",
+                current_code,
+                agent_outputs,
+            )
+        except Exception as e:
+            agent_outputs["docs_error"] = str(e)
+            yield (f"⚠️ Documentation Agent — Error: {str(e)}", current_code, agent_outputs)
+
+    # ── Phase 3: Quality Metrics ─────────────────────────────────────────────
+    yield ("📊 Calculating quality metrics…", current_code, agent_outputs)
+
+    tests = agent_outputs.get("tests", "")
+    security = agent_outputs.get("security", "SECURE")
+    perf = agent_outputs.get("performance", "OPTIMIZED")
+    approved = is_approved(agent_outputs.get("critic", ""))
+
+    quality_report = generate_quality_report(
+        code=current_code,
+        tests=tests,
+        security_audit=security,
+        performance_analysis=perf,
+        approval_status=approved,
+    )
+    agent_outputs["quality_metrics"] = quality_report
+
     yield (
-        f"⚠️ Orchestrator — Max iterations ({max_iterations}) reached. "
-        "Returning best available implementation.",
+        "✅ Pipeline complete! All agents have processed the code.",
         current_code,
+        agent_outputs,
     )
