@@ -64,14 +64,20 @@ No copy-pasting. No back-and-forth. Just describe → approve → deploy.
 
 ```
 ReflxAI-Advanced/
-├── app.py              # Streamlit UI entrypoint
-├── agent_loop.py       # Multi-agent orchestration engine
-├── generator.py        # Code-Writer Agent (Groq)
-├── critique.py         # Code-Reviewer Agent (Groq)
-├── github_agent.py     # GitHub PR automation (PyGithub)
-├── style.css           # Premium light-theme dashboard styles
-├── requirements.txt    # Python dependencies
-└── .gitignore          # Ignores secrets, venv, cache
+├── app.py                  # Enhanced Streamlit UI with tabs & metrics
+├── agent_loop.py           # 6-agent orchestration engine
+├── generator.py            # Code-Writer Agent (Groq)
+├── critique.py             # Code-Reviewer Agent (Groq)
+├── test_agent.py           # Unit Test Generator (Groq) [NEW]
+├── performance_agent.py    # Performance Optimizer (Groq) [NEW]
+├── security_agent.py       # Security Auditor (Groq) [NEW]
+├── documentation_agent.py  # Documentation Generator (Groq) [NEW]
+├── metrics.py              # Quality Metrics Calculator [NEW]
+├── github_agent.py         # GitHub PR automation (PyGithub)
+├── style.css               # Premium dashboard styles
+├── requirements.txt        # Python dependencies
+├── README.md               # This file
+└── .gitignore              # Ignores secrets, venv, cache
 ```
 
 ---
@@ -116,36 +122,80 @@ Open [http://localhost:8501](http://localhost:8501) in your browser.
 
 ## 🎮 Usage
 
-### Basic — Generate Code
+### Basic Workflow
 
-1. Type your engineering instructions in the prompt box  
-   *e.g. "Write a Python function for binary search with O(log n) complexity"*
-2. Or click a **Quick Start Template** pill to auto-fill a prompt
-3. Hit **⚡ Engineer It**
-4. Watch the multi-agent pipeline run live in the status panel
-5. Download the approved `solution_output.py`
+1. **Enter Requirements** in the prompt box or select a template
+2. **Configure Agents** in the sidebar (adjust iteration depth, skip agents if needed)
+3. **Click "⚡ Engineer It"** to start the pipeline
+4. **Watch Live Updates** as agents execute sequentially
+5. **Review Outputs** in the multi-tab interface:
+   - **Code Tab** — Final implementation with download
+   - **Tests Tab** — pytest-compatible unit tests
+   - **Metrics Tab** — Quality scores and complexity analysis
+   - **Performance Tab** — Optimization recommendations
+   - **Security Tab** — Vulnerability audit results
+   - **Docs Tab** — Code with comprehensive docstrings
 
-### Advanced — Auto-Deploy to GitHub
+### Advanced Features
 
-1. Generate code as above
-2. Paste your GitHub repo URL into the **GitHub Repository URL** field  
-   *e.g. `https://github.com/your-username/your-repo`*
-3. After code is approved, click **🚀 Create Pull Request**
-4. A new branch `ai/engineered-solution` is created with your code committed as `solution_output.py`
-5. A Pull Request is automatically opened — click the link to review it
+#### Agent Configuration (Sidebar)
+- **Max Generator Iterations** (1–5) — How many times should the Generator refactor based on Critic feedback?
+- **Skip Agents** — Toggle individual agents (Test, Performance, Security, Docs) to speed up pipeline
 
-### LeetCode Problems
+#### Export Options
+- **Download Code** — `solution_output.py` (final code)
+- **Download Tests** — `test_solution.py` (pytest file)
+- **Download Documented Code** — `documented_solution.py` (with docstrings)
+- **Download Full Report** — JSON report with all agent outputs
 
-Paste any LeetCode problem description directly into the prompt:
+#### GitHub Integration
+1. Paste your GitHub repo URL (e.g., `https://github.com/user/repo`)
+2. Click **"🚀 Create Pull Request"** after code approval
+3. A new branch `ai/engineered-solution` is created automatically
 
-```
-Given an array of integers nums and an integer target, return indices 
-of the two numbers such that they add up to target. You may assume 
-that each input would have exactly one solution. Solve in O(n) using 
-a hash map.
-```
+---
 
-The agents will generate an optimised solution, review it for correctness and efficiency, and refine if needed.
+## 📊 Quality Metrics Explained
+
+| Metric | Meaning | Ideal |
+|---|---|---|
+| **Overall Score** | Weighted average of all metrics (0–100) | 90+ |
+| **Cyclomatic Complexity** | Number of decision paths | 1–10 |
+| **Cognitive Complexity** | Mental effort to understand code | 1–15 |
+| **Test Coverage** | % of functions tested | 80%+ |
+| **Security Score** | Absence of vulnerabilities (0–100) | 100 |
+| **Performance Score** | Code optimization rating (0–100) | 85+ |
+| **Approval Status** | Critic Agent final verdict | ✅ APPROVED |
+
+---
+
+## 🤖 Agent Roles
+
+### Generator Agent
+- **Role** — Writes clean, production-ready Python code
+- **Refines Based On** — Critic feedback
+- **Output** — Raw Python source code
+
+### Critic Agent
+- **Role** — Reviews code for quality, bugs, edge cases
+- **Verdict** — `APPROVED` or numbered list of issues
+
+### Test Agent
+- **Role** — Generates comprehensive unit tests
+- **Format** — pytest-compatible with parametrized tests
+
+### Performance Agent
+- **Role** — Analyzes code for bottlenecks and optimization opportunities
+- **Verdict** — `OPTIMIZED` or numbered list of improvements
+
+### Security Agent
+- **Role** — Audits code for vulnerabilities and hardening
+- **Checks** — Injection attacks, cryptography, secret exposure
+- **Severity Levels** — HIGH/MEDIUM/LOW
+
+### Documentation Agent
+- **Role** — Adds comprehensive docstrings and comments
+- **Style** — Google-style docstring format
 
 ---
 
