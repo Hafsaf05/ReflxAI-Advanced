@@ -9,18 +9,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_SYSTEM_PROMPT = (
-    "You are an elite software testing engineer with expertise in unit testing and test-driven development. "
-    "Your sole responsibility is to generate comprehensive, production-ready unit tests for Python code. "
-    "Return ONLY raw Python code with pytest-style tests — no explanations, no markdown fences, no preamble. "
-    "Generate tests that cover:\n"
-    "  1. Happy path (normal inputs)\n"
-    "  2. Edge cases (boundary values, empty inputs, large inputs)\n"
-    "  3. Error cases (invalid inputs, exceptions)\n"
-    "  4. Performance expectations (timeout, resource limits)\n"
-    "Include assertions, fixtures where needed, and parametrized tests for multiple scenarios. "
-    "Output must be valid Python that runs directly with pytest."
-)
+def get_system_prompt(language: str) -> str:
+    return (
+        "You are an elite software testing engineer with expertise in unit testing and test-driven development. "
+        f"Your sole responsibility is to generate comprehensive, production-ready unit tests for {language} code. "
+        f"Return ONLY raw {language} code using a standard testing framework (e.g., pytest for Python, JUnit for Java, Google Test for C++) — no explanations, no markdown fences, no preamble. "
+        "Generate tests that cover:\n"
+        "  1. Happy path (normal inputs)\n"
+        "  2. Edge cases (boundary values, empty inputs, large inputs)\n"
+        "  3. Error cases (invalid inputs, exceptions)\n"
+        "  4. Performance expectations (timeout, resource limits)\n"
+        "Include assertions, setup/teardown where needed, and parametrized tests for multiple scenarios. "
+        f"Output must be valid {language} that compiles and runs directly with the chosen testing framework."
+    )
 
 _MODEL = "llama-3.3-70b-versatile"
 
@@ -35,12 +36,13 @@ def _get_client() -> Groq:
     return Groq(api_key=api_key)
 
 
-def generate_tests(code: str) -> str:
+def generate_tests(code: str, language: str = "Python") -> str:
     """
-    Generate comprehensive unit tests for the given Python code.
+    Generate comprehensive unit tests for the given code.
 
     Args:
-        code: The Python source code to generate tests for.
+        code: The source code to generate tests for.
+        language: The programming language of the code (default: Python).
 
     Returns:
         A string containing valid pytest test code.
@@ -55,16 +57,16 @@ def generate_tests(code: str) -> str:
     client = _get_client()
 
     prompt = (
-        "Generate comprehensive unit tests for the following Python code:\n\n"
-        f"```python\n{code.strip()}\n```\n\n"
-        "Return ONLY the test code, ready to run with pytest."
+        f"Generate comprehensive unit tests for the following {language} code:\n\n"
+        f"```{language.lower()}\n{code.strip()}\n```\n\n"
+        "Return ONLY the test code, ready to compile and run."
     )
 
     try:
         response = client.chat.completions.create(
             model=_MODEL,
             messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "system", "content": get_system_prompt(language)},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.3,

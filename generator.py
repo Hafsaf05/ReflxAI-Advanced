@@ -9,15 +9,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_SYSTEM_PROMPT = (
-    "You are an elite principal software engineer with 20+ years of experience. "
-    "Your sole responsibility is to write clean, production-ready Python code. "
-    "Return ONLY the raw Python code — no conversational chatter, no introductory remarks, "
-    "no explanatory text, no markdown code fences, and no trailing summaries. "
-    "The output must be valid Python that can be saved directly to a .py file and executed. "
-    "Follow PEP 8 style conventions, include type hints, and add concise inline comments "
-    "where they genuinely aid comprehension."
-)
+def get_system_prompt(language: str) -> str:
+    return (
+        f"You are an elite principal software engineer with 20+ years of experience. "
+        f"Your sole responsibility is to write clean, production-ready {language} code. "
+        f"Return ONLY the raw {language} code — no conversational chatter, no introductory remarks, "
+        f"no explanatory text, no markdown code fences, and no trailing summaries. "
+        f"The output must be valid {language} that can be saved directly to a file and executed. "
+        f"Follow idiomatic style conventions for {language}, include type hints (if applicable), and add concise inline comments "
+        f"where they genuinely aid comprehension."
+    )
 
 _MODEL = "llama-3.3-70b-versatile"
 
@@ -32,15 +33,16 @@ def _get_client() -> Groq:
     return Groq(api_key=api_key)
 
 
-def generate_code(prompt: str) -> str:
+def generate_code(prompt: str, language: str = "Python") -> str:
     """
-    Generate production-ready Python code for the given natural-language prompt.
+    Generate production-ready code for the given natural-language prompt in the specified language.
 
     Args:
-        prompt: A description of the Python code to generate.
+        prompt: A description of the code to generate.
+        language: The programming language to use (default: Python).
 
     Returns:
-        A string containing only valid Python source code.
+        A string containing only valid source code.
 
     Raises:
         EnvironmentError: If GROQ_API_KEY is missing.
@@ -55,7 +57,7 @@ def generate_code(prompt: str) -> str:
         response = client.chat.completions.create(
             model=_MODEL,
             messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "system", "content": get_system_prompt(language)},
                 {"role": "user", "content": prompt.strip()},
             ],
             temperature=0.25,   # Low temperature for deterministic, precise code

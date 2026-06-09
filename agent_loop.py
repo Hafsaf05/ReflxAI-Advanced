@@ -20,6 +20,7 @@ AgentUpdate = Tuple[str, str, Dict[str, Any]]
 
 def run_developer_agents(
     prompt: str,
+    language: str = "Python",
     max_iterations: int = 3,
     skip_agents: list = None,
 ) -> Generator[AgentUpdate, None, None]:
@@ -79,7 +80,7 @@ def run_developer_agents(
 
         yield (status_gen, current_code, agent_outputs)
 
-        current_code = generate_code(generation_prompt)
+        current_code = generate_code(generation_prompt, language)
         yield (
             f"✅ Generator Agent — Iteration {iteration} complete.",
             current_code,
@@ -93,7 +94,7 @@ def run_developer_agents(
             agent_outputs,
         )
 
-        verdict = evaluate_code(current_code)
+        verdict = evaluate_code(current_code, language)
         agent_outputs["critic"] = verdict
 
         if is_approved(verdict):
@@ -117,7 +118,7 @@ def run_developer_agents(
     if "test" not in skip_agents:
         yield ("🧪 Test Agent — Generating comprehensive tests…", current_code, agent_outputs)
         try:
-            tests = generate_tests(current_code)
+            tests = generate_tests(current_code, language)
             agent_outputs["tests"] = tests
             yield (
                 "✅ Test Agent — Tests generated successfully.",
@@ -136,7 +137,7 @@ def run_developer_agents(
             agent_outputs,
         )
         try:
-            perf_analysis = analyze_performance(current_code)
+            perf_analysis = analyze_performance(current_code, language)
             agent_outputs["performance"] = perf_analysis
             yield (
                 "✅ Performance Agent — Analysis complete.",
@@ -155,7 +156,7 @@ def run_developer_agents(
             agent_outputs,
         )
         try:
-            security_audit = audit_security(current_code)
+            security_audit = audit_security(current_code, language)
             agent_outputs["security"] = security_audit
             yield (
                 "✅ Security Agent — Audit complete.",
@@ -174,7 +175,7 @@ def run_developer_agents(
             agent_outputs,
         )
         try:
-            documented_code = generate_documentation(current_code)
+            documented_code = generate_documentation(current_code, language)
             agent_outputs["documented_code"] = documented_code
             current_code = documented_code
             yield (

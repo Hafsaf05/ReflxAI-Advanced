@@ -9,20 +9,21 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_SYSTEM_PROMPT = (
-    "You are a technical writer and documentation expert. "
-    "Your job is to generate comprehensive, professional documentation for Python code. "
-    "Create documentation that includes:\n"
-    "  1. Function/class docstrings (Google style)\n"
-    "  2. Module-level documentation\n"
-    "  3. Usage examples\n"
-    "  4. Parameter descriptions with types\n"
-    "  5. Return value documentation\n"
-    "  6. Exception documentation\n"
-    "  7. Edge cases and limitations\n\n"
-    "Return ONLY the fully documented Python code with comprehensive docstrings. "
-    "Use Google-style docstring format. No explanations, no markdown fences, just code."
-)
+def get_system_prompt(language: str) -> str:
+    return (
+        "You are a technical writer and documentation expert. "
+        f"Your job is to generate comprehensive, professional documentation for {language} code. "
+        "Create documentation that includes:\n"
+        "  1. Function/class descriptions\n"
+        "  2. Module-level documentation\n"
+        "  3. Usage examples\n"
+        "  4. Parameter descriptions with types\n"
+        "  5. Return value documentation\n"
+        "  6. Exception documentation\n"
+        "  7. Edge cases and limitations\n\n"
+        f"Return ONLY the fully documented {language} code with comprehensive docstrings/comments. "
+        f"Use standard documentation formats for {language} (e.g., Javadoc for Java, Doxygen for C++, docstrings for Python). No explanations, no markdown fences, just code."
+    )
 
 _MODEL = "llama-3.3-70b-versatile"
 
@@ -37,12 +38,13 @@ def _get_client() -> Groq:
     return Groq(api_key=api_key)
 
 
-def generate_documentation(code: str) -> str:
+def generate_documentation(code: str, language: str = "Python") -> str:
     """
-    Generate comprehensive documentation for the given Python code.
+    Generate comprehensive documentation for the given code.
 
     Args:
-        code: The Python source code to document.
+        code: The source code to document.
+        language: The programming language of the code (default: Python).
 
     Returns:
         The code with comprehensive docstrings and documentation.
@@ -57,16 +59,16 @@ def generate_documentation(code: str) -> str:
     client = _get_client()
 
     prompt = (
-        "Add comprehensive, professional documentation to the following Python code. "
-        "Use Google-style docstrings. Return only the documented code:\n\n"
-        f"```python\n{code.strip()}\n```"
+        f"Add comprehensive, professional documentation to the following {language} code. "
+        f"Use standard documentation formats. Return only the documented code:\n\n"
+        f"```{language.lower()}\n{code.strip()}\n```"
     )
 
     try:
         response = client.chat.completions.create(
             model=_MODEL,
             messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "system", "content": get_system_prompt(language)},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.25,
