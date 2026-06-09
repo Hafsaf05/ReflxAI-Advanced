@@ -1,11 +1,13 @@
 """
 app.py — ReflxAI-Advanced
-Streamlit Application Entrypoint: premium multi-agent software engineering UI.
+Advanced Streamlit Application: 6-agent engineering platform with professional UI.
 """
 
 import os
 import time
+import json
 from pathlib import Path
+from datetime import datetime
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -16,9 +18,9 @@ load_dotenv()
 # ── Page Configuration ────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="ReflxAI-Advanced",
-    page_icon="R",
-    layout="centered",
-    initial_sidebar_state="collapsed",
+    page_icon="🤖",
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 # ── Inject Custom CSS ─────────────────────────────────────────────────────────
@@ -28,8 +30,6 @@ def _load_css(path: str) -> None:
     if css_file.exists():
         with open(css_file, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    else:
-        st.warning(f"CSS file not found at: {path}")
 
 
 _load_css("style.css")
@@ -40,6 +40,12 @@ _DEFAULTS: dict = {
     "pr_url": "",
     "selected_template": None,
     "run_triggered": False,
+    "auto_run": False,
+    "agent_outputs": {},
+    "quality_metrics": {},
+    "generations_history": [],
+    "processing_complete": False,
+    "prompt_input": "",
 }
 
 for key, default in _DEFAULTS.items():
@@ -84,48 +90,69 @@ TEMPLATES: dict[str, str] = {
     ),
 }
 
-# ── Header ────────────────────────────────────────────────────────────────────
+# ── Professional Header ────────────────────────────────────────────────────────
 st.markdown(
     """
     <div class="brand-header">
-        <div class="brand-logo">R</div>
+        <div class="brand-logo">🤖</div>
         <div>
             <div class="brand-title">ReflxAI-Advanced</div>
-            <div class="brand-subtitle">Autonomous Multi-Agent Software Engineering</div>
+            <div class="brand-subtitle">6-Agent Autonomous Software Engineering Platform</div>
         </div>
         <div class="status-badge">
             <div class="pulse-dot"></div>
-            Agents Online
+            All Agents Online
         </div>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-# ── Quick Templates (Pills) ───────────────────────────────────────────────────
-st.markdown('<div class="section-label">Quick Start Templates</div>', unsafe_allow_html=True)
+# ── Sidebar Settings ──────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("### ⚙️ Agent Configuration")
+    
+    max_iterations = st.slider(
+        "Max Generator Iterations",
+        min_value=1,
+        max_value=5,
+        value=2,
+        help="How many times should Generator refactor based on feedback?"
+    )
+    
+    st.markdown("**Skip Agents:**")
+    skip_test = st.checkbox("Skip Test Generation", value=False)
+    skip_perf = st.checkbox("Skip Performance Analysis", value=False)
+    skip_security = st.checkbox("Skip Security Audit", value=False)
+    skip_docs = st.checkbox("Skip Documentation", value=False)
+    
+    skip_agents = []
+    if skip_test:
+        skip_agents.append("test")
+    if skip_perf:
+        skip_agents.append("performance")
+    if skip_security:
+        skip_agents.append("security")
+    if skip_docs:
+        skip_agents.append("docs")
 
-selected_pill = st.pills(
-    label="templates",
-    options=list(TEMPLATES.keys()),
-    selection_mode="single",
-    label_visibility="collapsed",
-    key="pill_selector",
-)
+# ── Prompt Form (Always Visible) ──────────────────────────────────────────────
+st.markdown('<div class="section-label">⚡ Quick Start Templates</div>', unsafe_allow_html=True)
 
-# When a template pill is selected, update the prompt and rerun
-if selected_pill and selected_pill != st.session_state.get("selected_template"):
-    st.session_state.selected_template = selected_pill
-    st.session_state.prompt_input = TEMPLATES[selected_pill]
-    st.rerun()
+# Template buttons in columns for better visibility
+cols = st.columns(len(TEMPLATES))
+for idx, (template_name, template_text) in enumerate(TEMPLATES.items()):
+    with cols[idx]:
+        if st.button(template_name, use_container_width=True, key=f"template_{template_name}"):
+            st.session_state.prompt_input = template_text
+            st.session_state.selected_template = template_name
+            st.rerun()
 
+st.markdown('<div class="section-label">✍️ Engineering Instructions</div>', unsafe_allow_html=True)
 
-# ── Prompt Input ──────────────────────────────────────────────────────────────
-# ── Prompt Input + Submit ─────────────────────────────────────────────────────
-
-with st.form("engineering_form", clear_on_submit=True):
+with st.form("engineering_form", clear_on_submit=False):
     prompt_value = st.text_area(
-        label="Engineering Instructions",
+        label="",
         height=180,
         placeholder=(
             "Describe the Python code you want engineered…\n\n"
@@ -133,21 +160,61 @@ with st.form("engineering_form", clear_on_submit=True):
             "complexity, full type hints, and a comprehensive docstring."
         ),
         help="The Generator Agent will write code to satisfy this specification.",
+        value=st.session_state.get("prompt_input", ""),
     )
 
-    run_clicked = st.form_submit_button(
-        "⚡ Engineer It",
-        type="primary",
-        use_container_width=True,
-    )
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        run_clicked = st.form_submit_button(
+            "⚡ Engineer It",
+            type="primary",
+            use_container_width=True,
+        )
+    with col2:
+        if st.session_state.get("processing_complete"):
+            st.markdown(
+                "<div style='padding-top: 10px; font-size: 0.75rem; color: #10b981;'>"
+                "✅ Auto-generating · Just keep typing…</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                "<div style='padding-top: 10px; font-size: 0.75rem; color: #64748b;'>"
+                "Processing with all agents · Real-time status updates</div>",
+                unsafe_allow_html=True,
+            )
 
-if prompt_value:
+# Detect if user submitted the form or typed new text
+if run_clicked and prompt_value:
+    st.session_state.prompt_input = prompt_value
     st.session_state.selected_template = None
+    if st.session_state.final_code:
+        st.session_state.final_code = ""
+        st.session_state.pr_url = ""
+        st.session_state.agent_outputs = {}
+        st.session_state.quality_metrics = {}
+        st.session_state.generations_history = []
+        st.session_state.processing_complete = False
+    st.session_state.auto_run = True
+    st.rerun()
+elif prompt_value and prompt_value != st.session_state.get("prompt_input"):
+    # User typed new text (not from form submission)
+    st.session_state.prompt_input = prompt_value
+    st.session_state.selected_template = None
+    if st.session_state.final_code:
+        st.session_state.final_code = ""
+        st.session_state.pr_url = ""
+        st.session_state.agent_outputs = {}
+        st.session_state.quality_metrics = {}
+        st.session_state.generations_history = []
+        st.session_state.processing_complete = False
+    st.session_state.auto_run = True
+    st.rerun()
 
-# ── GitHub Deployment Input ───────────────────────────────────────────────────
-st.markdown("")
+# ── GitHub Integration ────────────────────────────────────────────────────────
+st.markdown('<div class="section-label">🔗 GitHub Integration (Optional)</div>', unsafe_allow_html=True)
 github_url = st.text_input(
-    label="GitHub Repository URL (optional)",
+    label="",
     value="",
     placeholder="https://github.com/your-username/your-repo",
     help=(
@@ -156,50 +223,49 @@ github_url = st.text_input(
     ),
 )
 
-# # ── Run Controls ──────────────────────────────────────────────────────────────
-# col_btn, col_hint = st.columns([1, 3])
-
-# with col_btn:
-#     run_clicked = st.button(
-#         "⚡ Engineer It",
-#         type="primary",
-#         use_container_width=True,
-#         disabled=not prompt_value.strip(),
-#     )
-
-# with col_hint:
-#     st.markdown(
-#         "<div style='padding-top:10px;font-size:0.78rem;color:#64748b;'>"
-#         "Up to 3 agent iterations · Groq llama3-70b-8192</div>",
-#         unsafe_allow_html=True,
-#     )
-
 # ── Agent Execution ───────────────────────────────────────────────────────────
-if run_clicked and prompt_value.strip():
-    # Reset previous outputs
+auto_run = st.session_state.get("auto_run", False)
+if not st.session_state.get("processing_complete") and (run_clicked or auto_run) and prompt_value.strip():
+    # Reset auto_run flag after use
+    st.session_state.auto_run = False
+    
     st.session_state.final_code = ""
     st.session_state.pr_url = ""
+    st.session_state.agent_outputs = {}
+    st.session_state.generations_history = []
 
     from agent_loop import run_developer_agents
 
     final_code = ""
+    generation_count = 0
 
     with st.status("🚀 Initialising agent pipeline…", expanded=True) as status_box:
         try:
-            for status_msg, current_code in run_developer_agents(
+            for status_msg, current_code, agent_outputs in run_developer_agents(
                 prompt=prompt_value,
-                max_iterations=2,  # Set to 1 for faster feedback; increase for more refinement cycles
+                max_iterations=max_iterations,
+                skip_agents=skip_agents,
             ):
                 status_box.update(label=status_msg)
+                final_code = current_code
+                st.session_state.agent_outputs = agent_outputs
 
-                if current_code:
-                    final_code = current_code
-                    with st.expander("📄 Current Code Snapshot", expanded=False):
-                        st.code(current_code, language="python")
+                # Track generations
+                if "Iteration" in status_msg or "Generator" in status_msg:
+                    if current_code and current_code not in [g.get("code") for g in st.session_state.generations_history]:
+                        generation_count += 1
+                        st.session_state.generations_history.append({
+                            "iteration": generation_count,
+                            "status": status_msg,
+                            "code": current_code,
+                            "timestamp": datetime.now().isoformat()
+                        })
 
-                time.sleep(0.1)  # Brief pause for UI responsiveness
+                time.sleep(0.1)
 
             status_box.update(label="✅ Engineering complete!", state="complete")
+            st.session_state.processing_complete = True
+            st.session_state.prompt_input = ""  # Clear the prompt after processing
 
         except EnvironmentError as env_err:
             status_box.update(label="❌ Configuration error", state="error")
@@ -216,86 +282,207 @@ if run_clicked and prompt_value.strip():
             st.stop()
 
     st.session_state.final_code = final_code
-
-    if "prompt_input" in st.session_state:
-        del st.session_state["prompt_input"]
-
-    
-    st.session_state.selected_template = None
-
+    st.session_state.processing_complete = True
     st.rerun()
 
-# ── Final Code Output ─────────────────────────────────────────────────────────
+# ── Results Dashboard ─────────────────────────────────────────────────────────
 if st.session_state.final_code:
     st.markdown("---")
-    st.markdown("### ✅ Approved Implementation")
+    
+    st.markdown("")
+    
+    # ── Generations Timeline ──────────────────────────────────────────────────
+    if st.session_state.generations_history:
+        with st.expander("📜 All Generations Timeline", expanded=False):
+            st.markdown("### Generation History")
+            
+            for gen in st.session_state.generations_history:
+                with st.container():
+                    col1, col2 = st.columns([1, 8])
+                    with col1:
+                        st.markdown(f"**Iteration {gen['iteration']}**")
+                    with col2:
+                        st.markdown(f"_{gen['status']}_")
+                    
+                    with st.expander("View Code", expanded=False):
+                        st.code(gen['code'], language="python")
+                    st.divider()
+    
+    # ── Tabs for different outputs ────────────────────────────────────────────
+    tab_code, tab_tests, tab_metrics, tab_perf, tab_security, tab_docs = st.tabs([
+        "✅ Final Code",
+        "🧪 Tests",
+        "📊 Metrics",
+        "⚡ Performance",
+        "🔒 Security",
+        "📚 Documentation"
+    ])
 
-    st.code(st.session_state.final_code, language="python")
+    # Code Tab
+    with tab_code:
+        st.markdown("### ✨ Final Implementation")
+        st.code(st.session_state.final_code, language="python")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.download_button(
+                label="⬇️ Download solution_output.py",
+                data=st.session_state.final_code,
+                file_name="solution_output.py",
+                mime="text/plain",
+                use_container_width=True,
+            )
+        with col2:
+            if github_url.strip():
+                deploy_clicked = st.button(
+                    "🚀 Create Pull Request",
+                    type="secondary",
+                    use_container_width=True,
+                )
 
-    col_copy, col_dl = st.columns(2)
-    with col_dl:
-        st.download_button(
-            label="⬇️ Download solution_output.py",
-            data=st.session_state.final_code,
-            file_name="solution_output.py",
-            mime="text/plain",
-            use_container_width=True,
-        )
+                if deploy_clicked:
+                    from github_agent import process_github_repo
 
-    # ── GitHub PR Deployment ──────────────────────────────────────────────────
-    if github_url.strip():
-        st.markdown("---")
-        st.markdown("### 🐙 GitHub Deployment")
+                    with st.spinner("Committing code and opening Pull Request…"):
+                        try:
+                            pr_url = process_github_repo(
+                                repo_url=github_url.strip(),
+                                task_description="Generated code solution",
+                                file_contents=st.session_state.final_code,
+                            )
+                            st.session_state.pr_url = pr_url
+                            st.success("Pull Request created!")
+                            st.markdown(f"[Open PR ↗]({pr_url})")
 
-        deploy_clicked = st.button(
-            "🚀 Create Pull Request",
-            type="secondary",
-            use_container_width=False,
-        )
+                        except EnvironmentError as env_err:
+                            st.error(f"**GitHub Token Error:** {env_err}")
+                        except ValueError as val_err:
+                            st.error(f"**Invalid Repository URL:** {val_err}")
+                        except RuntimeError as rt_err:
+                            st.error(f"**GitHub Error:** {rt_err}")
 
-        if deploy_clicked:
-            from github_agent import process_github_repo
+    # Tests Tab
+    with tab_tests:
+        if "tests" in st.session_state.agent_outputs:
+            st.markdown("### 🧪 Generated Unit Tests")
+            st.code(st.session_state.agent_outputs["tests"], language="python")
+            st.download_button(
+                label="⬇️ Download test_solution.py",
+                data=st.session_state.agent_outputs["tests"],
+                file_name="test_solution.py",
+                mime="text/plain",
+            )
+        else:
+            st.info("Test generation was skipped or failed.")
 
-            with st.spinner("Committing code and opening Pull Request…"):
-                try:
-                    pr_url = process_github_repo(
-                        repo_url=github_url.strip(),
-                        task_description="Generated code solution",
-                        file_contents=st.session_state.final_code,
-                    )
-                    st.session_state.pr_url = pr_url
+    # Metrics Tab
+    with tab_metrics:
+        if "quality_metrics" in st.session_state.agent_outputs:
+            metrics = st.session_state.agent_outputs["quality_metrics"]
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric(
+                    "Overall Score",
+                    f"{metrics.get('overall_score', 0)}/100",
+                )
+            with col2:
+                st.metric(
+                    "Test Coverage",
+                    f"{metrics.get('test_coverage', 0)}%"
+                )
+            with col3:
+                st.metric(
+                    "Security Score",
+                    f"{metrics.get('security_score', 0)}/100"
+                )
+            with col4:
+                st.metric(
+                    "Performance Score",
+                    f"{metrics.get('performance_score', 0)}/100"
+                )
+            
+            st.markdown("#### Complexity Analysis")
+            complexity = metrics.get("complexity", {})
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Cyclomatic", complexity.get("cyclomatic_complexity", 0))
+            with col2:
+                st.metric("Cognitive", complexity.get("cognitive_complexity", 0))
+            with col3:
+                st.metric("LOC", complexity.get("lines_of_code", 0))
+            
+            st.markdown(f"**Status:** {metrics.get('approval_status', 'Unknown')}")
 
-                except EnvironmentError as env_err:
-                    st.error(f"**GitHub Token Error:** {env_err}")
-                    st.info("Set `GITHUB_TOKEN` in your `.env` file.")
+    # Performance Tab
+    with tab_perf:
+        if "performance" in st.session_state.agent_outputs:
+            st.markdown("### ⚡ Performance Analysis")
+            st.markdown(st.session_state.agent_outputs["performance"])
+        else:
+            st.info("Performance analysis was skipped or failed.")
 
-                except ValueError as val_err:
-                    st.error(f"**Invalid Repository URL:** {val_err}")
+    # Security Tab
+    with tab_security:
+        if "security" in st.session_state.agent_outputs:
+            st.markdown("### 🔒 Security Audit")
+            audit = st.session_state.agent_outputs["security"]
+            if audit.strip().upper() == "SECURE":
+                st.success("✅ No vulnerabilities found!")
+            else:
+                st.warning("⚠️ Security issues detected:")
+                st.markdown(audit)
+        else:
+            st.info("Security audit was skipped or failed.")
 
-                except RuntimeError as rt_err:
-                    st.error(f"**GitHub Error:** {rt_err}")
+    # Documentation Tab
+    with tab_docs:
+        if "documented_code" in st.session_state.agent_outputs:
+            st.markdown("### 📚 Documented Code")
+            st.code(st.session_state.agent_outputs["documented_code"], language="python")
+            st.download_button(
+                label="⬇️ Download documented_solution.py",
+                data=st.session_state.agent_outputs["documented_code"],
+                file_name="documented_solution.py",
+                mime="text/plain",
+            )
+        else:
+            st.info("Documentation generation was skipped or failed.")
 
-    if st.session_state.pr_url:
-        st.success("Pull Request created successfully!")
-        st.markdown(
-            f"""
-            <div class="pr-link-container">
-                🔗 <a href="{st.session_state.pr_url}" target="_blank">
-                {st.session_state.pr_url}
-                </a>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            f"[Open Pull Request ↗]({st.session_state.pr_url})",
-        )
+    # Export Full Report
+    st.markdown("---")
+    st.markdown("### 📋 Export Full Report")
+    
+    report_data = {
+        "timestamp": datetime.now().isoformat(),
+        "code": st.session_state.final_code,
+        "generations": st.session_state.generations_history,
+        "agent_outputs": st.session_state.agent_outputs,
+    }
+    
+    report_json = json.dumps(report_data, indent=2)
+    st.download_button(
+        label="⬇️ Download Full Report (JSON)",
+        data=report_json,
+        file_name=f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+        mime="application/json",
+    )
+    
+    # Reset Button
+    if st.button("🔄 Start New Generation", type="secondary", use_container_width=False):
+        st.session_state.final_code = ""
+        st.session_state.pr_url = ""
+        st.session_state.agent_outputs = {}
+        st.session_state.generations_history = []
+        st.session_state.processing_complete = False
+        st.rerun()
 
-# ── Footer ────────────────────────────────────────────────────────────────────
+# ── Professional Footer ────────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown(
     "<div style='text-align:center;font-size:0.75rem;color:#94a3b8;padding-bottom:1rem;'>"
-    "ReflxAI-Advanced · Powered by Groq llama3-70b-8192 · Built with Streamlit"
+    "🤖 ReflxAI-Advanced · 6 Autonomous Agents · Powered by Groq llama3-70b · Built with Streamlit"
     "</div>",
     unsafe_allow_html=True,
 )
