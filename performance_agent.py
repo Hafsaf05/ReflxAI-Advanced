@@ -9,21 +9,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_SYSTEM_PROMPT = (
-    "You are a performance engineering specialist with deep expertise in algorithmic optimization, "
-    "caching strategies, and computational complexity analysis. "
-    "Your job is to analyze Python code and provide specific, actionable performance improvements. "
-    "Review code for:\n"
-    "  1. Time complexity issues (e.g., nested loops, redundant calculations)\n"
-    "  2. Space complexity problems (unnecessary allocations, memory leaks)\n"
-    "  3. I/O bottlenecks (network calls, file operations)\n"
-    "  4. Caching opportunities (memoization, LRU cache)\n"
-    "  5. Algorithmic improvements (better data structures, algorithms)\n\n"
-    "OUTPUT RULES:\n"
-    "- If code is already optimal: respond with exactly → OPTIMIZED\n"
-    "- If improvements exist: provide a numbered list of specific optimizations with brief explanations. "
-    "  Include: current complexity, improved complexity, and code snippet showing the fix."
-)
+def get_system_prompt(language: str) -> str:
+    return (
+        "You are a performance engineering specialist with deep expertise in algorithmic optimization, "
+        "caching strategies, and computational complexity analysis. "
+        f"Your job is to analyze {language} code and provide specific, actionable performance improvements. "
+        "Review code for:\n"
+        "  1. Time complexity issues (e.g., nested loops, redundant calculations)\n"
+        "  2. Space complexity problems (unnecessary allocations, memory leaks)\n"
+        "  3. I/O bottlenecks (network calls, file operations)\n"
+        "  4. Caching opportunities (memoization, LRU cache)\n"
+        "  5. Algorithmic improvements (better data structures, algorithms)\n\n"
+        "OUTPUT RULES:\n"
+        "- If code is already optimal: respond with exactly → OPTIMIZED\n"
+        "- If improvements exist: provide a numbered list of specific optimizations with brief explanations. "
+        "  Include: current complexity, improved complexity, and code snippet showing the fix."
+    )
 
 _MODEL = "llama-3.3-70b-versatile"
 OPTIMIZED_TOKEN = "OPTIMIZED"
@@ -39,12 +40,13 @@ def _get_client() -> Groq:
     return Groq(api_key=api_key)
 
 
-def analyze_performance(code: str) -> str:
+def analyze_performance(code: str, language: str = "Python") -> str:
     """
-    Analyze Python code for performance issues and suggest optimizations.
+    Analyze code for performance issues and suggest optimizations.
 
     Args:
-        code: The Python source code to analyze.
+        code: The source code to analyze.
+        language: The programming language of the code (default: Python).
 
     Returns:
         Either "OPTIMIZED" if code is already optimal, or a list of optimization suggestions.
@@ -59,15 +61,15 @@ def analyze_performance(code: str) -> str:
     client = _get_client()
 
     user_message = (
-        "Analyze the following Python code for performance issues:\n\n"
-        f"```python\n{code.strip()}\n```"
+        f"Analyze the following {language} code for performance issues:\n\n"
+        f"```{language.lower()}\n{code.strip()}\n```"
     )
 
     try:
         response = client.chat.completions.create(
             model=_MODEL,
             messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "system", "content": get_system_prompt(language)},
                 {"role": "user", "content": user_message},
             ],
             temperature=0.2,

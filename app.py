@@ -54,40 +54,39 @@ for key, default in _DEFAULTS.items():
 
 # ── Template Options ───────────────────────────────────────────────────────────
 TEMPLATES: dict[str, str] = {
-    "Bubble Sort": (
-        "Write a Python function `bubble_sort(arr: list) -> list` that implements "
-        "the Bubble Sort algorithm. Include type hints, docstring, and an optimised "
-        "early-exit flag to stop if the list becomes sorted before all passes complete."
+    "Python: FastAPI": (
+        "Write a Python FastAPI REST endpoint `/users` that handles GET and POST requests. "
+        "Include Pydantic models for request validation, a docstring, and error handling."
     ),
-    "Inefficient Fibonacci": (
-        "Write a deliberately inefficient recursive Fibonacci function "
-        "`fib_naive(n: int) -> int` that exhibits exponential time complexity, "
-        "then write a second optimised version `fib_memo(n: int) -> int` using "
-        "memoization. Include benchmarking code that compares both."
+    "Java: Spring Boot": (
+        "Write a Java Spring Boot REST controller for managing `Product` entities. "
+        "Include necessary annotations, input validation, and a mock service layer."
     ),
-    "Binary Search": (
-        "Write a Python function `binary_search(arr: list, target: int) -> int` "
-        "that performs iterative binary search on a sorted list. Return the index "
-        "of the target or -1 if not found. Include edge-case handling and a "
-        "comprehensive suite of unit tests using the `unittest` module."
+    "C++: Matrix": (
+        "Write a C++ template class `Matrix<T>` that implements matrix addition and multiplication. "
+        "Include a copy constructor, assignment operator, and comprehensive inline documentation."
     ),
-    "Quick Sort": (
-        "Write a Python function `quick_sort(arr: list) -> list` implementing "
-        "the QuickSort algorithm using a random pivot selection strategy to avoid "
-        "worst-case O(n²) behaviour. Include type hints, docstring, and "
-        "in-place partitioning logic."
+    "C: Linked List": (
+        "Write a C implementation of a singly linked list with functions to `append`, `delete`, and `free` the list. "
+        "Include struct definitions and memory leak prevention."
     ),
-    "LRU Cache": (
-        "Implement an LRU (Least Recently Used) cache class `LRUCache` in Python "
-        "with `get(key)` and `put(key, value)` methods, both running in O(1) time. "
-        "Use an OrderedDict internally. Include full type hints and a usage example."
+    "JS: Rate Limiter": (
+        "Write a Node.js Express middleware function that rate-limits incoming requests per IP address using an in-memory store. "
+        "Include JSDoc comments and proper error responses."
     ),
-    "REST API Client": (
-        "Write a Python class `APIClient` that wraps the `requests` library to "
-        "make authenticated REST API calls. Include GET, POST, PUT, DELETE methods, "
-        "configurable base URL and API key header, automatic retry logic with "
-        "exponential backoff, and timeout handling."
+    "Web: Login Page": (
+        "Write a responsive HTML, CSS, and JavaScript login page in a single file. "
+        "Include a modern glassmorphism design, client-side form validation, and hover animations."
     ),
+}
+
+LANGUAGE_CONFIG = {
+    "Python": {"ext": "py", "highlight": "python"},
+    "Java": {"ext": "java", "highlight": "java"},
+    "C++": {"ext": "cpp", "highlight": "cpp"},
+    "C": {"ext": "c", "highlight": "c"},
+    "JavaScript": {"ext": "js", "highlight": "javascript"},
+    "HTML/CSS/JS": {"ext": "html", "highlight": "html"},
 }
 
 # ── Professional Header ────────────────────────────────────────────────────────
@@ -111,6 +110,13 @@ st.markdown(
 # ── Sidebar Settings ──────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### ⚙️ Agent Configuration")
+    
+    selected_language = st.selectbox(
+        "Language Context",
+        options=["Python", "Java", "C++", "C", "JavaScript", "HTML/CSS/JS"],
+        index=0,
+        help="Select the programming language for the generated code."
+    )
     
     max_iterations = st.slider(
         "Max Generator Iterations",
@@ -152,11 +158,12 @@ st.markdown('<div class="section-label">✍️ Engineering Instructions</div>', 
 
 with st.form("engineering_form", clear_on_submit=False):
     prompt_value = st.text_area(
-        label="",
+        label="Engineering Prompt",
+        label_visibility="collapsed",
         height=180,
         placeholder=(
-            "Describe the Python code you want engineered…\n\n"
-            "Example: Write a Python function that implements merge sort with O(n log n) "
+            "Describe the code you want engineered…\n\n"
+            "Example: Write a function that implements merge sort with O(n log n) "
             "complexity, full type hints, and a comprehensive docstring."
         ),
         help="The Generator Agent will write code to satisfy this specification.",
@@ -214,7 +221,8 @@ elif prompt_value and prompt_value != st.session_state.get("prompt_input"):
 # ── GitHub Integration ────────────────────────────────────────────────────────
 st.markdown('<div class="section-label">🔗 GitHub Integration (Optional)</div>', unsafe_allow_html=True)
 github_url = st.text_input(
-    label="",
+    label="GitHub Repository URL",
+    label_visibility="collapsed",
     value="",
     placeholder="https://github.com/your-username/your-repo",
     help=(
@@ -243,6 +251,7 @@ if not st.session_state.get("processing_complete") and (run_clicked or auto_run)
         try:
             for status_msg, current_code, agent_outputs in run_developer_agents(
                 prompt=prompt_value,
+                language=selected_language,
                 max_iterations=max_iterations,
                 skip_agents=skip_agents,
             ):
@@ -305,7 +314,7 @@ if st.session_state.final_code:
                         st.markdown(f"_{gen['status']}_")
                     
                     with st.expander("View Code", expanded=False):
-                        st.code(gen['code'], language="python")
+                        st.code(gen['code'], language=LANGUAGE_CONFIG[selected_language]["highlight"])
                     st.divider()
     
     # ── Tabs for different outputs ────────────────────────────────────────────
@@ -321,14 +330,15 @@ if st.session_state.final_code:
     # Code Tab
     with tab_code:
         st.markdown("### ✨ Final Implementation")
-        st.code(st.session_state.final_code, language="python")
+        st.code(st.session_state.final_code, language=LANGUAGE_CONFIG[selected_language]["highlight"])
         
         col1, col2 = st.columns(2)
         with col1:
+            ext = LANGUAGE_CONFIG[selected_language]["ext"]
             st.download_button(
-                label="⬇️ Download solution_output.py",
+                label=f"⬇️ Download solution_output.{ext}",
                 data=st.session_state.final_code,
-                file_name="solution_output.py",
+                file_name=f"solution_output.{ext}",
                 mime="text/plain",
                 use_container_width=True,
             )
@@ -365,11 +375,12 @@ if st.session_state.final_code:
     with tab_tests:
         if "tests" in st.session_state.agent_outputs:
             st.markdown("### 🧪 Generated Unit Tests")
-            st.code(st.session_state.agent_outputs["tests"], language="python")
+            st.code(st.session_state.agent_outputs["tests"], language=LANGUAGE_CONFIG[selected_language]["highlight"])
+            ext = LANGUAGE_CONFIG[selected_language]["ext"]
             st.download_button(
-                label="⬇️ Download test_solution.py",
+                label=f"⬇️ Download test_solution.{ext}",
                 data=st.session_state.agent_outputs["tests"],
-                file_name="test_solution.py",
+                file_name=f"test_solution.{ext}",
                 mime="text/plain",
             )
         else:
@@ -440,11 +451,12 @@ if st.session_state.final_code:
     with tab_docs:
         if "documented_code" in st.session_state.agent_outputs:
             st.markdown("### 📚 Documented Code")
-            st.code(st.session_state.agent_outputs["documented_code"], language="python")
+            st.code(st.session_state.agent_outputs["documented_code"], language=LANGUAGE_CONFIG[selected_language]["highlight"])
+            ext = LANGUAGE_CONFIG[selected_language]["ext"]
             st.download_button(
-                label="⬇️ Download documented_solution.py",
+                label=f"⬇️ Download documented_solution.{ext}",
                 data=st.session_state.agent_outputs["documented_code"],
-                file_name="documented_solution.py",
+                file_name=f"documented_solution.{ext}",
                 mime="text/plain",
             )
         else:

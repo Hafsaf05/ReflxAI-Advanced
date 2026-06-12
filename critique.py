@@ -9,19 +9,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_SYSTEM_PROMPT = (
-    "You are a meticulous automated QA engineer and code auditor. "
-    "Your job is to review Python code for the following categories of issues:\n"
-    "  1. Logical bugs or incorrect algorithmic behavior\n"
-    "  2. Runtime errors, unhandled exceptions, or edge-case traps\n"
-    "  3. Performance inefficiencies (e.g., O(n²) where O(n log n) is trivial)\n"
-    "  4. Security vulnerabilities or unsafe practices\n"
-    "  5. Violations of Pythonic style (PEP 8, type hints, readability)\n\n"
-    "STRICT OUTPUT RULES:\n"
-    "- If the code is correct, efficient, and optimal: respond with EXACTLY one word → APPROVED\n"
-    "- If any issues exist: output a clean, numbered, actionable list of specific modifications needed. "
-    "  Do NOT include praise, preamble, or closing remarks. Only the numbered list."
-)
+def get_system_prompt(language: str) -> str:
+    return (
+        "You are a meticulous automated QA engineer and code auditor. "
+        f"Your job is to review {language} code for the following categories of issues:\n"
+        "  1. Logical bugs or incorrect algorithmic behavior\n"
+        "  2. Runtime errors, unhandled exceptions, or edge-case traps\n"
+        "  3. Performance inefficiencies (e.g., O(n²) where O(n log n) is trivial)\n"
+        "  4. Security vulnerabilities or unsafe practices\n"
+        f"  5. Violations of idiomatic style (e.g., readability, standard naming conventions for {language})\n\n"
+        "STRICT OUTPUT RULES:\n"
+        "- If the code is correct, efficient, and optimal: respond with EXACTLY one word → APPROVED\n"
+        "- If any issues exist: output a clean, numbered, actionable list of specific modifications needed. "
+        "  Do NOT include praise, preamble, or closing remarks. Only the numbered list."
+    )
 
 _MODEL = "llama-3.3-70b-versatile"
 APPROVAL_TOKEN = "APPROVED"
@@ -37,12 +38,13 @@ def _get_client() -> Groq:
     return Groq(api_key=api_key)
 
 
-def evaluate_code(code: str) -> str:
+def evaluate_code(code: str, language: str = "Python") -> str:
     """
-    Evaluate a Python code block for quality issues.
+    Evaluate a code block for quality issues.
 
     Args:
-        code: The Python source code to review.
+        code: The source code to review.
+        language: The programming language of the code (default: Python).
 
     Returns:
         The string "APPROVED" if the code passes all checks, or a numbered
@@ -59,15 +61,15 @@ def evaluate_code(code: str) -> str:
     client = _get_client()
 
     user_message = (
-        "Review the following Python code and respond according to your instructions:\n\n"
-        f"```python\n{code.strip()}\n```"
+        f"Review the following {language} code and respond according to your instructions:\n\n"
+        f"```{language.lower()}\n{code.strip()}\n```"
     )
 
     try:
         response = client.chat.completions.create(
             model=_MODEL,
             messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "system", "content": get_system_prompt(language)},
                 {"role": "user", "content": user_message},
             ],
             temperature=0.1,   # Very low temperature for consistent, objective evaluation

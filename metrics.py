@@ -9,10 +9,10 @@ from typing import Dict, Tuple
 
 def calculate_complexity(code: str) -> Dict[str, float]:
     """
-    Calculate cyclomatic and cognitive complexity metrics for Python code.
+    Calculate cyclomatic and cognitive complexity metrics for the code.
 
     Args:
-        code: The Python source code.
+        code: The source code.
 
     Returns:
         A dict with complexity metrics.
@@ -43,7 +43,7 @@ def estimate_test_coverage(code: str, tests: str) -> float:
     Estimate test coverage based on functions/classes defined vs tested.
 
     Args:
-        code: The Python source code.
+        code: The source code.
         tests: The test code.
 
     Returns:

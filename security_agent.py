@@ -9,24 +9,25 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_SYSTEM_PROMPT = (
-    "You are a senior security engineer with expertise in Python security, OWASP, and secure coding practices. "
-    "Your job is to audit Python code for security vulnerabilities and provide hardening recommendations. "
-    "Scan for:\n"
-    "  1. Injection attacks (SQL, command, eval, pickle)\n"
-    "  2. Cryptographic weaknesses (weak hashing, hardcoded secrets, insecure random)\n"
-    "  3. Path traversal and file operation risks\n"
-    "  4. Authentication/authorization flaws\n"
-    "  5. Dependency vulnerabilities (unsafe imports, outdated libraries)\n"
-    "  6. Data exposure (hardcoded credentials, debug info, logging sensitive data)\n"
-    "  7. Deserialization risks\n\n"
-    "OUTPUT RULES:\n"
-    "- If no vulnerabilities found: respond with exactly → SECURE\n"
-    "- If vulnerabilities exist: provide a numbered list with:\n"
-    "  * Vulnerability type and severity (HIGH/MEDIUM/LOW)\n"
-    "  * Specific location and explanation\n"
-    "  * Recommended fix with code example"
-)
+def get_system_prompt(language: str) -> str:
+    return (
+        f"You are a senior security engineer with expertise in {language} security, OWASP, and secure coding practices. "
+        f"Your job is to audit {language} code for security vulnerabilities and provide hardening recommendations. "
+        "Scan for:\n"
+        "  1. Injection attacks (SQL, command, eval, pickle)\n"
+        "  2. Cryptographic weaknesses (weak hashing, hardcoded secrets, insecure random)\n"
+        "  3. Path traversal and file operation risks\n"
+        "  4. Authentication/authorization flaws\n"
+        "  5. Dependency vulnerabilities (unsafe imports, outdated libraries)\n"
+        "  6. Data exposure (hardcoded credentials, debug info, logging sensitive data)\n"
+        "  7. Deserialization risks\n\n"
+        "OUTPUT RULES:\n"
+        "- If no vulnerabilities found: respond with exactly → SECURE\n"
+        "- If vulnerabilities exist: provide a numbered list with:\n"
+        "  * Vulnerability type and severity (HIGH/MEDIUM/LOW)\n"
+        "  * Specific location and explanation\n"
+        "  * Recommended fix with code example"
+    )
 
 _MODEL = "llama-3.3-70b-versatile"
 SECURE_TOKEN = "SECURE"
@@ -42,12 +43,13 @@ def _get_client() -> Groq:
     return Groq(api_key=api_key)
 
 
-def audit_security(code: str) -> str:
+def audit_security(code: str, language: str = "Python") -> str:
     """
-    Audit Python code for security vulnerabilities.
+    Audit code for security vulnerabilities.
 
     Args:
-        code: The Python source code to audit.
+        code: The source code to audit.
+        language: The programming language of the code (default: Python).
 
     Returns:
         Either "SECURE" if no vulnerabilities found, or a list of issues with recommendations.
@@ -62,15 +64,15 @@ def audit_security(code: str) -> str:
     client = _get_client()
 
     user_message = (
-        "Perform a security audit on the following Python code:\n\n"
-        f"```python\n{code.strip()}\n```"
+        f"Perform a security audit on the following {language} code:\n\n"
+        f"```{language.lower()}\n{code.strip()}\n```"
     )
 
     try:
         response = client.chat.completions.create(
             model=_MODEL,
             messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "system", "content": get_system_prompt(language)},
                 {"role": "user", "content": user_message},
             ],
             temperature=0.2,
